@@ -1,17 +1,20 @@
 
 public class Transaction {
 	private String TName;
-	private boolean status;
+	private boolean isAborted;
+	private boolean isCommited;
 	private int TId;
-	public enum type{
-		Read,
-		Write,
-		ReadOnly
-	}
+	private int time;
+	private boolean isReadOnly;
+	
 	public Transaction(String Tname,int id) {
 		this.TName=Tname;
 		this.TId=id;
-		this.status=false;
-		
+		this.isAborted=false;
+		this.isCommited=false;
+		this.isReadOnly=false;
+	}
+	public void setReadOnly() {
+		this.isReadOnly=true;
 	}
 }
