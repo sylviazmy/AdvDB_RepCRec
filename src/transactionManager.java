@@ -10,7 +10,7 @@ public class transactionManager {
 	private ArrayList<Site> siteList=new ArrayList<Site>();
 	private ArrayList<Variable> variableList=new ArrayList<Variable>();
 	private HashMap<String,Transaction> transactionList=new HashMap<String,Transaction>();
-	private static ArrayList<String[]> OpsList;
+	private static ArrayList<String[]> OpsList= new ArrayList<String[]>();
 	private ArrayList<String[]> waitList;
 	
 	public Site getSite(int index) {
@@ -46,25 +46,34 @@ public class transactionManager {
 		int time=1;
 		for(String[] op:OpsList) {
 			if(op[0].equals("begin")) {
-				
+				System.out.printf("\nbegin:%s",op[1]);
 				Transaction trct=new Transaction(op[1],time);
+				System.out.printf("\nTransaction %s is initiated",op[1]);
 				transactionList.put(op[1], trct);
 				
 			}else if(op[0].equals("beginRO")) {
+				System.out.printf("\nbeginRO:%s",op[1]);
 				Transaction trct=new Transaction(op[1],time);
 				trct.setReadOnly();
+				System.out.printf("\nTransaction %s is initiated as readonly",op[1]);
 				transactionList.put(op[1], trct);
 				
 			}
 			else if(op[0].equals("R")){
+				System.out.printf("\nR:",op[1]);
 				String[] details=op[1].split(",");
 				String transaction=details[0];
 				String variable=details[1];
 				int vId=Integer.parseInt(variable.substring(1));
 				if(vId%2==1){//odd variable
 					Site s=getSite(1+vId%10);
-					if(s.lockTable.containsKey(variable)) {//if the site has lock on this variable
-						if(s.lockTable.get(variable)=="RL") {//check the lock if it's a readlock
+					if(transactionList.get(transaction).isReadonly()) {
+						System.out.printf("%s,%s",variable,s.getOldVariable(variable));
+					}
+					else if(s.lockTable.containsKey(s.getVariable(variable))) {//if the variable has already been locked on this site
+//					if(s.lockTable.containsKey(variable)) {//if the variable has already been locked on this site
+						if(s.lockTable.get(s.getVariable(variable)).getLockStatus().equals("RL")||s.lockTable.get(s.getVariable(variable)).getLockStatus().equals("NoLock")){//check the lock if it's a readlock
+//						if(s.lockTable.get(variable)=="RL") {//check the lock if it's a readlock
 							System.out.printf(variable,s.getVariable(variable));
 							
 						}else {//or it's writelock, wait
@@ -73,29 +82,64 @@ public class transactionManager {
 						}
 					}
 					else{
-						s.setVariableLock(variable, "RL");
-						System.out.printf(variable,s.getVariable(variable));
+						s.setReadLock(variable,transaction);
+//						s.setVariableLock(variable, "RL");
+						System.out.print("Readed successfully  ");
+						System.out.printf("%s,%s",variable,s.getVariable(variable));
 					}
 				}else {//even variable
-					for(Site s:siteList) {//randomly read one site
-						if(s.hasVariable(variable)&&(s.lockTable.get(variable)!="WL")) {
-							s.setVariableLock(variable, "RL");
-							System.out.printf(variable,s.getVariable(variable));
-							break;
+					if(transactionList.get(transaction).isReadonly()) {
+						for(Site s:siteList) {//randomly read one site
+							if(s.hasVariable(variable)) {
+								System.out.print("readonly transaction readed successfully\n");
+								s.setReadLock(variable,transaction);
+								System.out.printf("%s,%s",variable,s.getOldVariable(variable));
+								break;
+							}
+						}
+						
+					}
+					else {
+						for(Site s:siteList) {//randomly read one site
+							if(s.hasVariable(variable)&&(!s.lockTable.get(s.getVariable(variable)).getLockStatus().equals("WL"))) {
+								System.out.print("Readed successfully\n");
+								s.setReadLock(variable,transaction);
+								System.out.printf("%s,%s",variable,s.getVariable(variable));
+								break;
+							}
 						}
 					}
 				}
 				
 				
 			}else if(op[0].equals("W")) {
+				System.out.printf("\nW%s:",op[1]);
+				String[] details=op[1].split(",");
+				String transaction=details[0];
+				String variable=details[1];
+				int value=Integer.parseInt(details[2]);
+				int vId=Integer.parseInt(variable.substring(1));
+				if(vId%2==1){//odd variable
+					Site s=getSite(1+vId%10);
+					
+					}
+				else {
+					for(Site s:siteList) {
+					}
+					
+				}
 				
 			}else if(op[0].equals("end")) {
+				System.out.printf("\nend:",op);
 				
 			}else if(op[0].equals("dump")) {
+				System.out.printf("\ndump:",op);
 				
 			}else if(op[0].equals("fail")) {
+				System.out.printf("\nfail:",op);
 				
 			}else if(op[0].equals("recover")) {
+				System.out.printf("\nrecover:",op);
 				
 			}
 		}
@@ -105,16 +149,17 @@ public class transactionManager {
 	public static void main(String[] args) throws FileNotFoundException {
 		// TODO Auto-generated method stub
 		Scanner input = new Scanner(System.in);
-		String path = input.next();
+//		String path = input.next();
+		String path="test/2";
 		FileReader fr = new FileReader(path);
 		Scanner scanner = new Scanner(fr);
 		while (scanner.hasNext()) {
-			String[] line = scanner.nextLine().split("(|)");
-			OpsList.add(line);
+			String[] ops=scanner.nextLine().split("\\(|\\)");
+			
+			OpsList.add(ops);
 		}
 		transactionManager tm=new transactionManager();
 		tm.init();
-
 	}
 
 }

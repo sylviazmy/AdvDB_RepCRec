@@ -17,4 +17,7 @@ public class Transaction {
 	public void setReadOnly() {
 		this.isReadOnly=true;
 	}
+	public boolean isReadonly() {
+		return this.isReadOnly;
+	}
 }
