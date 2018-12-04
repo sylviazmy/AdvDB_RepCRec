@@ -16,6 +16,9 @@ public class Site {
 		this.isFailed=true;
 		this.lockTable.clear();
 	}
+	public boolean isFailed() {
+		return this.isFailed;
+	}
 	public void addVariable(String key,Variable v) {
 		this.variableList.put(key, v);
 		Lock lock= new Lock();
@@ -33,17 +36,18 @@ public class Site {
 	public int getOldVariable(String key) {
 		return variableList.get(key).getOldValue();
 	}
-//	public void setVariableLock(String variableName,String lockType) {
-//		Variable vb=variableList.get(variableName);
-//		lockTable.put(variableName, lockType);
-//	}
 	public void setReadLock(String variableName,String transactionName) {
 		Variable vb=variableList.get(variableName);
 		lockTable.get(vb).addRlock(transactionName);
 	}
-	public void setWriteLock(String variableName,String transactionName) {
+	public void setWriteLock(String variableName,String transactionName,int value) {
 		Variable vb=variableList.get(variableName);
+		vb.editValue(value);
 		lockTable.get(variableName).addWlock(transactionName);
+	}
+	
+	public String getLockStatus(String variableName) {
+		return lockTable.get(variableList.get(variableName)).getLockStatus();
 	}
 	public void printStatus() {
 		for(String key:variableList.keySet()) {

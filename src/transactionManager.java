@@ -67,6 +67,7 @@ public class transactionManager {
 				int vId=Integer.parseInt(variable.substring(1));
 				if(vId%2==1){//odd variable
 					Site s=getSite(1+vId%10);
+					if(!s.isFailed()) {
 					if(transactionList.get(transaction).isReadonly()) {
 						System.out.printf("%s,%s",variable,s.getOldVariable(variable));
 					}
@@ -87,10 +88,14 @@ public class transactionManager {
 						System.out.print("Readed successfully  ");
 						System.out.printf("%s,%s",variable,s.getVariable(variable));
 					}
+					}
+					else {//the site is failed
+						System.out.printf("Transaction %s aborted due to Site %s failed",transaction,(1+vId%10));
+					}
 				}else {//even variable
 					if(transactionList.get(transaction).isReadonly()) {
 						for(Site s:siteList) {//randomly read one site
-							if(s.hasVariable(variable)) {
+							if((!s.isFailed())&&s.hasVariable(variable)) {
 								System.out.print("readonly transaction readed successfully\n");
 								s.setReadLock(variable,transaction);
 								System.out.printf("%s,%s",variable,s.getOldVariable(variable));
@@ -101,7 +106,7 @@ public class transactionManager {
 					}
 					else {
 						for(Site s:siteList) {//randomly read one site
-							if(s.hasVariable(variable)&&(!s.lockTable.get(s.getVariable(variable)).getLockStatus().equals("WL"))) {
+							if((!s.isFailed())&&s.hasVariable(variable)&&(!s.lockTable.get(s.getVariable(variable)).getLockStatus().equals("WL"))) {
 								System.out.print("Readed successfully\n");
 								s.setReadLock(variable,transaction);
 								System.out.printf("%s,%s",variable,s.getVariable(variable));
@@ -110,8 +115,6 @@ public class transactionManager {
 						}
 					}
 				}
-				
-				
 			}else if(op[0].equals("W")) {
 				System.out.printf("\nW%s:",op[1]);
 				String[] details=op[1].split(",");
@@ -121,10 +124,25 @@ public class transactionManager {
 				int vId=Integer.parseInt(variable.substring(1));
 				if(vId%2==1){//odd variable
 					Site s=getSite(1+vId%10);
-					
+					if(!s.isFailed()) {
+						if(s.getLockStatus(variable).equals("NoLock")){	
+							s.setWriteLock(variable, transaction,value);
+						}
+						else if(s.getLockStatus(variable).equals("RL")){
+							
+							
+						}else if (s.getLockStatus(variable).equals("WL")){
+							
+						}
 					}
+					else {
+						//site failed
+					}
+					
+				}
 				else {
 					for(Site s:siteList) {
+						
 					}
 					
 				}
