@@ -1,8 +1,8 @@
 
 public class Transaction {
 	private String TName;
-	private boolean isAborted;
-	private boolean isCommited;
+	public boolean isAborted;
+	public boolean isCommited;
 	private int TId;
 	private int time;
 	private boolean isReadOnly;

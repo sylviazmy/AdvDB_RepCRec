@@ -4,12 +4,15 @@ import java.util.Set;
 public class Site {
 	private int siteAddr;
 	private boolean isFailed;
-	private HashMap<String,Variable> variableList=new HashMap<String,Variable>();
+	public HashMap<String,Variable> variableList=new HashMap<String,Variable>();
 	//each site has an independent lock table(to store the variable and lock status)
 	public HashMap<Variable,Lock> lockTable=new HashMap<Variable,Lock>();
 	
 	public Site(int address){
 		this.siteAddr=address;
+	}
+	public int getSiteAddr() {
+		return this.siteAddr;
 	}
 	public void failSite(){
 		//if the site fails, the lock table is erased
@@ -43,7 +46,7 @@ public class Site {
 	public void setWriteLock(String variableName,String transactionName,int value) {
 		Variable vb=variableList.get(variableName);
 		vb.editValue(value);
-		lockTable.get(variableName).addWlock(transactionName);
+		lockTable.get(vb).addWlock(transactionName);
 	}
 	
 	public String getLockStatus(String variableName) {

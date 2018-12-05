@@ -10,9 +10,13 @@ public class Variable {
 	public Variable(String index) {
 		this.index=index;
 		//each variable xi is initialized to the value 10i(10 times i)
-		this.value=Integer.parseInt(index.substring(1))*10;
+		
+		this.value=Integer.parseInt(index)*10;
 		this.tempValue=this.value;
 		this.oldCopy=this.value;
+	}
+	public String getName() {
+		return "x"+this.index;
 	}
 	public int getValue() {
 		return this.value;

@@ -1,13 +1,15 @@
+import java.util.HashSet;
 import java.util.Set;
 
 public class Lock {
-	private Set rlockSet;
-	private Set wlockSet;
+	public Set<String> rlockSet=new HashSet<>();
+	public Set<String> wlockSet=new HashSet<>();
 	private String wlockHolder;
-	private String currentStatus;
+	public String currentStatus;
 	
 	public Lock(){
 		this.currentStatus="NoLock";
+		this.wlockHolder="";
 	}
 	public String getLockStatus() {
 		return this.currentStatus;
@@ -20,7 +22,7 @@ public class Lock {
 	}
 
 	public boolean addWlock(String transactionName) {
-		if(this.wlockSet.size()==0 && this.wlockHolder==null) {
+		if(this.wlockSet.size()==0 && this.wlockHolder=="") {
 			this.wlockSet.add(transactionName);
 			this.wlockHolder=transactionName;
 			this.currentStatus="WL";
@@ -51,11 +53,25 @@ public class Lock {
 		return this.wlockSet.size();
 	}
 	
-//	public void releaseRlock(){
+	public void releaseRlock(String tname){
+		if(this.rlockSet.size()==1) {
+			this.rlockSet.remove(tname);
+			this.currentStatus="NoLock";
+		}
+		else {
+			this.rlockSet.remove(tname);
+			this.currentStatus="RL";
+		}
 //		this.rlockSet.clear();
-//	}
-//	
-//	public void releaseWlock(){
-//		this.wlockSet.clear();
-//	}
+	}
+	
+	public void releaseWlock(){
+		this.wlockSet.clear();
+		this.wlockHolder="";
+		if(this.rlockSet.size()>0) {
+			this.currentStatus="RL";
+		}else if(this.rlockSet.size()==0) {
+			this.currentStatus="NoLock";
+		}
+	}
 }
