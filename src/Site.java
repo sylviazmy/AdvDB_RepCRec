@@ -45,8 +45,8 @@ public class Site {
 	public int getVariable(String key) {
 		return variableList.get(key).getValue();
 	}
-	public int getOldVariable(String key) {
-		return variableList.get(key).getOldValue();
+	public int getOldVariable(String key,int time) {
+		return variableList.get(key).getValueOntick(time);
 	}
 	public void setReadLock(String variableName,String transactionName) {
 		Variable vb=variableList.get(variableName);

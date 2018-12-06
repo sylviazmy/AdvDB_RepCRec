@@ -18,7 +18,6 @@ public class transactionManager {
 	private ArrayList<Variable> variableList=new ArrayList<Variable>();
 	private HashMap<String,Transaction> transactionList=new HashMap<String,Transaction>();
 	private static ArrayList<String[]> OpsList= new ArrayList<String[]>();
-//	private HashMap<String,String[]> waitList=new HashMap<String,String[]>();
 	private LinkedList<String[]> waitList=new LinkedList<String[]>();
 	public Set<String> GraphNode=new HashSet<String>();
 	public Set<String> GraphEdge=new HashSet<String>();
@@ -36,37 +35,26 @@ public class transactionManager {
 	
 	public void deadlockDetecter() {
 		//DFS
-		
 		if(GraphNode.size()>1) {//create graph
 			HashMap<String,Set<String>> graph= new HashMap<String,Set<String>>();
 			String root="";
 			for (String node:GraphNode) {//insert node
-				graph.put(node,new HashSet<String>());
-//				root=node;
+				if(!transactionList.get(node).isCommited&&!transactionList.get(node).isAborted) {
+					graph.put(node,new HashSet<String>());
+				}
 			}
 			
 			for(String edge:GraphEdge) {//insert edge
 				String head=edge.split("-")[0];
 				String tail=edge.split("-")[1];
-				if(!graph.containsKey(tail)) {
+				if(!graph.containsKey(tail)||transactionList.get(tail).isAborted||transactionList.get(tail).isCommited) {
 					continue;
 				}
-				else{
+				else if((!transactionList.get(head).isAborted)&&(!transactionList.get(head).isCommited)){
+					System.out.print("\ntransaction head:"+head+" status is "+transactionList.get(head).isCommited+"  "+transactionList.get(head).isAborted);
 					graph.get(head).add(tail);
 				}
 			}
-			Iterator iter=graph.entrySet().iterator();
-			while(iter.hasNext()) {
-				if(graph.get(iter.next()).size()==0) {//remove those useless node
-					iter.remove();
-//					graph.remove(head);
-				}
-			}
-//			for(String head:graph.keySet()) {
-//				if(graph.get(head).size()==0) {//remove those useless node
-//					graph.remove(head);
-//				}
-//			}
 			isDAG(graph);
 		}
 	}
@@ -84,7 +72,6 @@ public class transactionManager {
 					break;
 				}
 				if (detectDeadlock(tail,visited,graph)) {
-					
 					clearYoungest(visited,this.startOfCycle);
 					this.startOfCycle="";
 					cleared=true;
@@ -92,7 +79,6 @@ public class transactionManager {
 				}
 			}
 		}
-//		return false;
 	}
 	private void clearYoungest(LinkedHashSet<String> visited,String startOfCycle) {
 		// TODO Auto-generated method stub
@@ -119,7 +105,7 @@ public class transactionManager {
 			try{
 				String edge=(String)it.next();
 				int lE=edge.length();
-				System.out.println("\nedge:"+edge);
+//				System.out.println("\nedge:"+edge);
 				if(edge.startsWith(YoungestTrct)||edge.endsWith(YoungestTrct)) {
 					GraphEdge.remove(edge);
 				}
@@ -146,13 +132,14 @@ public class transactionManager {
 				}
 			}
 		transactionList.get(youngestTrct).isAborted=true;
+//		System.out.println("\nthe youngest transaction "+youngestTrct+" is aborted.");
 //		waitList.remove(youngestTrct);
 		for(String[] op:waitList) {
 			if(op[1].contains(youngestTrct)) {
 				waitList.remove(op);
 			}
 		}
-		System.out.printf("transaction %s aborted becuase it's yongest transaction in deadlock.",youngestTrct);
+		System.out.printf("transaction %s aborted becuase it's youngest transaction in deadlock.",youngestTrct);
 //		transactionList.remove(youngestTrct);
 	}
 	private boolean detectDeadlock(String head, LinkedHashSet<String> visited, HashMap<String, Set<String>> graph) {
@@ -211,12 +198,9 @@ public class transactionManager {
 			}
 			else {
 				waitList.add(op);
-//				System.out.println("\nwaitlist:"+op[0]+":"+op[1]);
 				Iterator<String[]> iter=waitList.iterator();
 				while(iter.hasNext()) {
 					String[] operation=iter.next();
-//				for(String[] operation:waitList){
-//					System.out.println("\nwaitlist size:"+waitList.size()+" "+waitList.getLast()[0]);
 					if(operation[0].equals("R")){
 						System.out.printf("\nR:%s\n",operation[1]);
 						String[] details=operation[1].split(",");
@@ -226,35 +210,24 @@ public class transactionManager {
 						if(vId%2==1){//odd variable
 							Site s=getSite(1+vId%10);
 							if(!s.isFailed()) {
-							if(transactionList.get(transaction).isReadonly()) {
-								System.out.println("\nreadonly transaction readed successfully");
-//								waitList.remove(operation);
-								iter.remove();
-								System.out.printf("\n%s,%s",variable,s.getOldVariable(variable));
-								}
-							else if(s.lockTable.containsKey(s.getVariable(variable))) {//if the variable has already been locked on this site
-//						
-								if(s.lockTable.get(s.getVariable(variable)).getLockStatus().equals("RL")||s.lockTable.get(s.getVariable(variable)).getLockStatus().equals("NoLock")){//check the lock if it's a readlock
-//								if(s.lockTable.get(variable)=="RL") {//check the lock if it's a readlock
-									System.out.printf("\n%s,%s",variable,s.getVariable(variable));
+//								System.out.println("\nthe lock status is:"+s.getLockStatus(variable));
+								if(transactionList.get(transaction).isReadonly()) {
+									System.out.println("\nreadonly transaction readed successfully");
 //									waitList.remove(operation);
 									iter.remove();
+									System.out.printf("\n%s,%s",variable,s.variableList.get(variable).getValueOntick(transactionList.get(transaction).getIniTime()));
+									}
+								else if(s.getLockStatus(variable).equals("RL")||s.getLockStatus(variable).equals("NoLock")) {//if the variable has already been locked on this site
+									s.setReadLock(variable,transaction);
+									System.out.printf("\n%s,%s",variable,s.variableList.get(variable).getValue());
+									iter.remove();
 									
-								}else {//or it's writelock, wait
-//									waitList.put(transaction, op);
-//									GraphNode.add(s.lockTable.get(s.getVariable(variable)).getWLockTransaction());
+									}
+								else if(s.getLockStatus(variable).equals("WL")){//or it's writelock, wait
 									GraphNode.add(transaction);
-									GraphEdge.add(transaction+"-"+s.lockTable.get(s.getVariable(variable)).getWLockTransaction());
-									System.out.printf("\ntransaction %s wait, because variable %s on site % is writelocked by transaction %s.",transaction,variable,s.getSiteAddr(),s.lockTable.get(s.getVariable(variable)).getWLockTransaction());
-								}
-							}
-							else{
-								s.setReadLock(variable,transaction);
-//								System.out.print("\nReaded successfully");
-//								waitList.remove(operation);
-								iter.remove();
-								System.out.printf("\n%s,%s",variable,s.getVariable(variable));
-							}
+									GraphEdge.add(transaction+"-"+s.lockTable.get(s.variableList.get(variable)).wlockHolder);
+									System.out.printf("\ntransaction %s wait, because variable %s on site %s is writelocked by transaction %s.",transaction,variable,s.getSiteAddr(),s.lockTable.get(s.variableList.get(variable)).wlockHolder);
+									}
 							}
 							else {//the site is failed
 								System.out.printf("\nTransaction %s waited due to Site %s failed",transaction,(1+vId%10));//no need to add to deadlock detection
@@ -267,7 +240,7 @@ public class transactionManager {
 //										System.out.print("\nreadonly transaction readed successfully\n");
 //										waitList.remove(operation);
 										iter.remove();
-										System.out.printf("\n%s,%s",variable,s.getOldVariable(variable));
+										System.out.printf("\n%s,%s",variable,s.variableList.get(variable).getValueOntick(transactionList.get(transaction).getIniTime()));
 										break;
 									}
 								}
@@ -277,8 +250,7 @@ public class transactionManager {
 								for(Site s:siteList) {//randomly read one site
 //									System.out.println(s.getSiteAddr()+" "+variable);
 									if((!s.isFailed())&&	(!s.lockTable.get(s.variableList.get(variable)).getLockStatus().equals("WL"))) {
-										System.out.print("\nReaded successfully\n");
-//										waitList.remove(operation);
+//										System.out.print("\nReaded successfully");
 										iter.remove();
 										s.setReadLock(variable,transaction);
 										System.out.printf("\n%s,%s",variable,s.getVariable(variable));
@@ -303,9 +275,10 @@ public class transactionManager {
 //									waitList.remove(operation);
 									iter.remove();
 									System.out.printf("\nTransaction %s writes variable %s on Site %s,value is:%d",transaction,variable,s.getSiteAddr(),value);
+									System.out.println("\nthe lock is "+s.getLockStatus(variable));
 								}
 								else if(s.getLockStatus(variable).equals("RL")){
-									if(s.lockTable.get(variable).ExistsInRlock(transaction)&&s.lockTable.get(variable).getRlockLength()>1)
+									if(s.lockTable.get(s.variableList.get(variable)).ExistsInRlock(transaction)&&s.lockTable.get(s.variableList.get(variable)).getRlockLength()>1)
 									{
 //										waitList.add(op);
 //										waitList.put(transaction, op);
@@ -318,10 +291,10 @@ public class transactionManager {
 										GraphNode.add(transaction);
 										System.out.printf("\nTransaction %s waits because variable %s on Site %s has been readlocked by other transactions",transaction,variable,s.getSiteAddr());
 									}
-									else if(!s.lockTable.get(variable).ExistsInRlock(transaction)&&s.lockTable.get(variable).getRlockLength()>0){
+									else if(!s.lockTable.get(s.variableList.get(variable)).ExistsInRlock(transaction)&&s.lockTable.get(s.variableList.get(variable)).getRlockLength()>0){
 //										waitList.add(op);
 //										waitList.put(transaction, op);
-										for(String ts:s.lockTable.get(variable).rlockSet) {
+										for(String ts:s.lockTable.get(s.variableList.get(variable)).rlockSet) {
 											if(!ts.equals(transaction)) {
 //												GraphNode.add(ts);	
 												GraphEdge.add(transaction+"-"+ts);
@@ -375,7 +348,7 @@ public class transactionManager {
 									}else if(!s.lockTable.get(s.variableList.get(variable)).ExistsInRlock(transaction)&&s.lockTable.get(s.variableList.get(variable)).getRlockLength()>0){
 										System.out.printf("Transaction %s waits because can't write to Site %s with readlock held by other transaction\n",transaction,s.getSiteAddr());
 //										waitList.put(transaction, op);
-										for(String ts:s.lockTable.get(variable).rlockSet) {
+										for(String ts:s.lockTable.get(s.variableList.get(variable)).rlockSet) {
 											if(!ts.equals(transaction)) {
 //												GraphNode.add(ts);	
 												GraphEdge.add(transaction+"-"+ts);
@@ -420,6 +393,7 @@ public class transactionManager {
 						if(transactionList.get(transaction).isReadonly()){
 //							waitList.remove(operation);
 							iter.remove();
+							transactionList.get(transaction).isCommited=true;
 							System.out.printf("\nreadonly transaction %s committed",transaction);
 						}
 						else if(transactionList.get(transaction).isAborted) {
@@ -431,7 +405,7 @@ public class transactionManager {
 							for(Site s:siteList) {//commit
 								for(Variable v:s.lockTable.keySet()) {
 									if(s.lockTable.get(v).getWLockTransaction().equals(transaction)) {
-										v.commit();
+										v.commit(time);
 										s.lockTable.get(v).releaseWlock();
 										System.out.printf("\ntransaction %s commited successfully on site %s,the value of variable %s is:%d",transaction,s.getSiteAddr(),v.getName(),s.variableList.get(v.getName().substring(1)).getValue());
 									}									
@@ -442,6 +416,7 @@ public class transactionManager {
 							}
 							System.out.printf("\ntransaction %s committed",transaction);
 //							waitList.remove(operation);
+							transactionList.get(transaction).isCommited=true;
 							iter.remove();
 						}
 						
