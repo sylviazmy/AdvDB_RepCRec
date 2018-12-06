@@ -9,7 +9,7 @@ public class Transaction {
 	
 	public Transaction(String Tname,int id) {
 		this.TName=Tname;
-		this.TId=id;
+		this.time=id;
 		this.isAborted=false;
 		this.isCommited=false;
 		this.isReadOnly=false;
@@ -19,5 +19,8 @@ public class Transaction {
 	}
 	public boolean isReadonly() {
 		return this.isReadOnly;
+	}
+	public int getIniTime() {
+		return this.time;
 	}
 }
