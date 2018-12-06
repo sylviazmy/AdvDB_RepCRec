@@ -14,10 +14,19 @@ public class Site {
 	public int getSiteAddr() {
 		return this.siteAddr;
 	}
+	
 	public void failSite(){
 		//if the site fails, the lock table is erased
 		this.isFailed=true;
-		this.lockTable.clear();
+//		this.lockTable.clear();
+		for(Variable v:lockTable.keySet()) {
+			lockTable.get(v).currentStatus="NoLock";
+			lockTable.get(v).wlockHolder="";
+		}
+	}
+	public void recover(){
+		System.out.println("\nsite recovered:"+this.siteAddr);
+		this.isFailed=false;
 	}
 	public boolean isFailed() {
 		return this.isFailed;
@@ -50,6 +59,7 @@ public class Site {
 	}
 	
 	public String getLockStatus(String variableName) {
+//		System.out.println("x"+variableName+" at "+this.siteAddr+"   "+this.lockTable.size());
 		return lockTable.get(variableList.get(variableName)).getLockStatus();
 	}
 	public void printStatus() {

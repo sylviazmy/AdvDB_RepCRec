@@ -4,14 +4,15 @@ import java.util.Set;
 public class Lock {
 	public Set<String> rlockSet=new HashSet<>();
 	public Set<String> wlockSet=new HashSet<>();
-	private String wlockHolder;
-	public String currentStatus;
+	public String wlockHolder;
+	public String currentStatus="NoLock";
 	
 	public Lock(){
 		this.currentStatus="NoLock";
 		this.wlockHolder="";
 	}
 	public String getLockStatus() {
+//		System.out.println("current status");
 		return this.currentStatus;
 	}
 	public void addRlock(String transactionName) {
