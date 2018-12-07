@@ -15,6 +15,14 @@ public class Variable {
 		this.tempValue=this.value;
 		this.oldCopy.put(0,this.value);
 	}
+	public Variable(String index,int num) {
+		this.index=index;
+		//each variable xi is initialized to the value 10i(10 times i)
+		
+		this.value=num;
+		this.tempValue=this.value;
+		this.oldCopy.put(0,this.value);
+	}
 	public String getName() {
 		return "x"+this.index;
 	}
