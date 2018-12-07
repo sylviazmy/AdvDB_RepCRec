@@ -46,7 +46,7 @@ public class centralManager {
 	 */
 	public void deadlockDetecter() {
 		//use DFS to check the circle in graph
-		if(GraphNode.size()>1) {//built graph
+		if(GraphEdge.size()>0) {//built graph
 			HashMap<String,Set<String>> graph= new HashMap<String,Set<String>>();
 			String root="";
 			for (String node:GraphNode) {//insert node
@@ -56,6 +56,7 @@ public class centralManager {
 			}
 			
 			for(String edge:GraphEdge) {//insert edge
+//				System.out.print("\n the edge: "+edge);
 				String head=edge.split("-")[0];
 				String tail=edge.split("-")[1];
 				if(!graph.containsKey(tail)||transactionList.get(tail).isAborted||transactionList.get(tail).isCommited) {
@@ -187,6 +188,8 @@ public class centralManager {
 				getSite(1+i%10).addVariable(index, variable);;
 			}
 		}
+		
+		
 		//read operations
 		int time=1;//time tick
 		for(String[] op:OpsList) {
@@ -227,23 +230,23 @@ public class centralManager {
 								iter.remove();
 								System.out.printf("\n%s,%s",variable,s.variableList.get(variable).getValueOntick(transactionList.get(transaction).getIniTime()));
 								}
-							else if(!s.isFailed()) {
-//								System.out.println("\nthe lock status is:"+s.getLockStatus(variable));
-								if(s.getLockStatus(variable).equals("RL")||s.getLockStatus(variable).equals("NoLock")) {//if the variable has already been locked on this site
+							else if(!s.isFailed()) {//if site is accessible
+								if(s.getLockStatus(variable).equals("RL")||s.getLockStatus(variable).equals("NoLock")||(s.getLockStatus(variable).equals("WL")&&(s.lockTable.get(variable).wlockHolder.equals(transaction)))) {//if the variable has already been locked on this site
 									s.setReadLock(variable,transaction);
 									System.out.printf("\n%s,%s",variable,s.variableList.get(variable).getValue());
 									s.lockTable.get(variable).removeFromLockQueue(transaction);
+									waitedT.remove(transaction);
 									iter.remove();
 									
 									}
-								else if(s.getLockStatus(variable).equals("WL")){//or it's writelock, wait
+								else if(s.getLockStatus(variable).equals("WL")&&(!s.lockTable.get(variable).wlockHolder.equals(transaction))){//or it's writelock and the holder is not itself, wait
 									GraphNode.add(transaction);
 									GraphEdge.add(transaction+"-"+s.lockTable.get(variable).wlockHolder);
 									System.out.printf("\ntransaction %s wait, because variable %s on site %s is writelocked by transaction %s.",transaction,variable,s.getSiteAddr(),s.lockTable.get(variable).wlockHolder);
 									s.lockTable.get(variable).addtoLockQueue(transaction);
 									waitedT.add(transaction);
 									}
-								else if((s.variableList.get(variable).getValue()==Integer.MAX_VALUE)) {
+								else if((s.variableList.get(variable).getValue()==Integer.MAX_VALUE)) {//just recovered
 									System.out.printf("\ntransaction %s wait, variable %s on site %s is not read available currently.",transaction,variable,s.getSiteAddr());
 									waitedT.add(transaction);
 								}
@@ -263,19 +266,23 @@ public class centralManager {
 								}
 							}
 							else {
-//								boolean hasRead=false;
+								boolean hasRead=false;
 								for(Site s:siteList) {//randomly read one site
-									if((!s.isFailed())&&	(!s.lockTable.get(variable).getLockStatus().equals("WL"))&&(s.variableList.get(variable).getValue()!=Integer.MAX_VALUE)) {
-//										System.out.print("\nReaded successfully");
+									if((!s.isFailed())&&	(s.lockTable.get(variable).getLockStatus().equals("NoLock")||s.lockTable.get(variable).getLockStatus().equals("RL")||
+											(s.lockTable.get(variable).getLockStatus().equals("WL")&&(s.lockTable.get(variable).wlockHolder.equals(transaction))))&&(s.variableList.get(variable).getValue()!=Integer.MAX_VALUE)) {
 										iter.remove();
 										s.lockTable.get(variable).removeFromLockQueue(transaction);
 										s.setReadLock(variable,transaction);
 										System.out.printf("\n%s,%s",variable,s.variableList.get(variable).getValue());
 										s.lockTable.get(variable).lockQueue.remove(transaction);
+										hasRead=true;
 										break;
 									}else {
 										System.out.printf("\ncan't read from site %s",s.getSiteAddr());
 									}
+								}
+								if(!hasRead) {
+									waitedT.add(transaction);
 								}
 							}
 						}
@@ -285,8 +292,9 @@ public class centralManager {
 						String transaction=details[0];
 						String variable=details[1].substring(1);
 						int value=Integer.parseInt(details[2]);
-//						System.out.println("\n--"+variable);
+//						System.out.println("\n--"+waitedT.toString());
 						int vId=Integer.parseInt(variable);
+					
 						if(waitedT.contains(transaction)) {
 							continue;
 						}
@@ -302,35 +310,40 @@ public class centralManager {
 									
 								}
 								else if(s.getLockStatus(variable).equals("RL")){
-									if(s.lockTable.get(variable).ExistsInRlock(transaction)&&s.lockTable.get(variable).getRlockLength()>1)
+//									for(String ts:s.lockTable.get(variable).rlockSet) {
+////										if(!ts.equals(transaction)) {
+//										GraphEdge.add(transaction+"-"+ts);
+////										}
+//									}
+//									GraphNode.add(transaction);
+//									System.out.printf("\nTransaction %s wait because variable %s on Site %s has been readlocked by other transactions",transaction,variable,s.getSiteAddr());
+//									s.lockTable.get(variable).addtoLockQueue(transaction);
+//									waitedT.add(transaction);
+									if(s.lockTable.get(variable).ExistsInRlock(transaction)&&s.lockTable.get(variable).getRlockLength()>1)//if other transaction shares readlock
 									{
-//										waitList.add(op);
-//										waitList.put(transaction, op);
 										for(String ts:s.lockTable.get(variable).rlockSet) {
-											if(!ts.equals(transaction)) {
-//												GraphNode.add(ts);	
+											if(!ts.equals(transaction)) {	
 												GraphEdge.add(transaction+"-"+ts);
 											}
 										}
 										GraphNode.add(transaction);
-										System.out.printf("\nTransaction %s waits because variable %s on Site %s has been readlocked by other transactions",transaction,variable,s.getSiteAddr());
+										System.out.printf("\nhere Transaction %s waits because variable %s on Site %s has been readlocked by other transactions",transaction,variable,s.getSiteAddr());
 										s.lockTable.get(variable).addtoLockQueue(transaction);
 										waitedT.add(transaction);
 									}
-									else if(!s.lockTable.get(variable).ExistsInRlock(transaction)&&s.lockTable.get(variable).getRlockLength()>0){
+									else if(!s.lockTable.get(variable).ExistsInRlock(transaction)&&s.lockTable.get(variable).getRlockLength()>0){//if other transaction shares readlock
 										for(String ts:s.lockTable.get(variable).rlockSet) {
 											if(!ts.equals(transaction)) {
-//												GraphNode.add(ts);	
 												GraphEdge.add(transaction+"-"+ts);
 											}
 										}
 										GraphNode.add(transaction);
-										System.out.printf("\nTransaction %s wait because variable %s on Site %s has been readlocked by other transactions",transaction,variable,s.getSiteAddr());
+										System.out.printf("\n or here?Transaction %s wait because variable %s on Site %s has been readlocked by other transactions",transaction,variable,s.getSiteAddr());
 										s.lockTable.get(variable).addtoLockQueue(transaction);
 										waitedT.add(transaction);
 									}
 									
-								}else if (s.getLockStatus(variable).equals("WL")){
+								}else if (s.getLockStatus(variable).equals("WL")){//if other transaction hold write lock
 									GraphNode.add(transaction);
 //									System.out.print("held by:"+s.lockTable.get(s.variableList.get(variable)).getWLockTransaction());
 									GraphEdge.add(transaction+"-"+s.lockTable.get(variable).getWLockTransaction());
@@ -341,7 +354,6 @@ public class centralManager {
 								}
 							}
 							else {
-								//site failed
 								System.out.printf("\nTransaction %s waits due to Site %s failed",transaction,(1+vId%10));
 								waitedT.add(transaction);
 								
@@ -353,11 +365,10 @@ public class centralManager {
 							for(Site s:siteList) {
 								if(s.isFailed()) {
 									System.out.printf("\nTransaction %s can't write variable to Site %s because site failure ",transaction,s.getSiteAddr());
-//									canWrite=false;
 									continue;
 
-								}else if(s.lockTable.get(variable).lockQueue.size()>0&&(!s.lockTable.get(variable).firstinLockQueue().equals(transaction))) {
-									System.out.printf("\nTransaction %s can't write variable to Site %s because previouse waiting lock ",transaction,s.getSiteAddr());
+								}else if((s.lockTable.get(variable).lockQueue.contains(transaction))&&!s.lockTable.get(variable).firstinLockQueue().equals(transaction)) {
+									System.out.printf("\nTransaction %s can't write variable to Site %s because previouse waiting lock %s",transaction,s.getSiteAddr(),s.lockTable.get(variable).firstinLockQueue());
 									if(!s.lockTable.get(variable).lastinLockQueue().equals(transaction)&&!s.lockTable.get(variable).lockQueue.contains(transaction)) {
 										GraphNode.add(s.lockTable.get(variable).lastinLockQueue());
 										GraphEdge.add(transaction+"-"+s.lockTable.get(variable).lastinLockQueue());
@@ -368,15 +379,22 @@ public class centralManager {
 									canWrite=false;
 									continue;
 								}
-								else if(s.getLockStatus(variable).equals("RL")){
-//									System.out.printf("\n%s",variable);
+								else if(s.getLockStatus(variable).equals("RL")&&(s.lockTable.get(variable)).lockQueue.size()==0){
+//									System.out.printf("\nTransaction %s waits because can't write to Site %s with readlock held by other transaction",transaction,s.getSiteAddr());									
+//									s.lockTable.get(variable).addtoLockQueue(transaction);//add to lock queue
+//									for(String ts:s.lockTable.get(variable).rlockSet) {
+//										if(!ts.equals(transaction)) {
+//										GraphEdge.add(transaction+"-"+ts);
+//										}
+//									}
+//									canWrite=false;
+
 									if(s.lockTable.get(variable).ExistsInRlock(transaction)&&s.lockTable.get(variable).getRlockLength()>1) {
 										System.out.printf("\nTransaction %s waits because can't write to Site %s with readlock held by other transaction",transaction,s.getSiteAddr());
 										
 										s.lockTable.get(variable).addtoLockQueue(transaction);//add to lock queue
 										for(String ts:s.lockTable.get(variable).rlockSet) {
 											if(!ts.equals(transaction)) {
-//												GraphNode.add(ts);	
 												GraphEdge.add(transaction+"-"+ts);
 											}
 										}
@@ -384,16 +402,13 @@ public class centralManager {
 //										break;
 									}else if(!s.lockTable.get(variable).ExistsInRlock(transaction)&&s.lockTable.get(variable).getRlockLength()>0){
 										System.out.printf("\nTransaction %s waits because can't write to Site %s with readlock held by other transaction",transaction,s.getSiteAddr());
-//										waitList.put(transaction, op);
 										s.lockTable.get(variable).addtoLockQueue(transaction);//add to lock queue
 										for(String ts:s.lockTable.get(variable).rlockSet) {
 											if(!ts.equals(transaction)) {
-//												GraphNode.add(ts);	
 												GraphEdge.add(transaction+"-"+ts);
 											}
 										}
 										canWrite=false;
-//										break;
 									}
 									
 								}else if (s.getLockStatus(variable).equals("WL")){
@@ -410,7 +425,7 @@ public class centralManager {
 								for(Site s:siteList) {
 									if(!s.isFailed()) {
 										s.setWriteLock(variable, transaction,value);
-//										System.out.printf("\ntransaction %s write to temp variable %s at site %s, the value:%d",transaction,variable,s.getSiteAddr(),value);
+										System.out.printf("\ntransaction %s write to temp variable %s at site %s, the value:%d",transaction,variable,s.getSiteAddr(),value);
 										s.lockTable.get(variable).removeFromLockQueue(transaction);
 									}
 								}

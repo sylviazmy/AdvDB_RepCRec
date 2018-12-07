@@ -32,6 +32,7 @@ public class Lock {
 		}
 		else {
 			Iterator it=lockQueue.iterator();
+			
 			return (String) it.next();
 		}
 	}
@@ -44,13 +45,17 @@ public class Lock {
 			Iterator it=lockQueue.iterator();
 			while(it.hasNext()) {
 				t=(String) it.next();
+				
 			}
 			return t;
 		}
 	}
 	public void addtoLockQueue(String trctName) {
-//		System.out.print("\nadded to lock queue  "+trctName);
-		this.lockQueue.add(trctName);
+		System.out.print("\nadded to lock queue  "+trctName);
+		if(!this.lockQueue.contains(trctName)) {
+			this.lockQueue.add(trctName);
+		}
+		
 	}
 	public void removeFromLockQueue(String trctName){
 		this.lockQueue.remove(trctName);
