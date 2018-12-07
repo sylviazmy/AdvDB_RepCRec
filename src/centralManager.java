@@ -1,3 +1,7 @@
+/*
+ * Mengyao(Sylvia) Zhu
+ * Dec.7, 2018
+ */
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.util.ArrayList;
@@ -11,14 +15,17 @@ import java.util.Scanner;
 import java.util.Set;
 import java.util.Stack;
 
-public class transactionManager {
+/*
+ *central manager to process with TM and DM 
+ */
+public class centralManager {
 	static private final int numOfSites=10;
 	static private final int numOfVariables=20;
-	private ArrayList<Site> siteList=new ArrayList<Site>();
-	private ArrayList<Variable> variableList=new ArrayList<Variable>();
-	private HashMap<String,Transaction> transactionList=new HashMap<String,Transaction>();
-	private static ArrayList<String[]> OpsList= new ArrayList<String[]>();
-	private LinkedList<String[]> waitList=new LinkedList<String[]>();
+	private ArrayList<Site> siteList=new ArrayList<Site>();//record sites in system
+	private ArrayList<Variable> variableList=new ArrayList<Variable>();//record variables in system
+	private HashMap<String,Transaction> transactionList=new HashMap<String,Transaction>();//record all initiated transactions
+	private static ArrayList<String[]> OpsList= new ArrayList<String[]>();// record the input of operations
+	private LinkedList<String[]> waitList=new LinkedList<String[]>();//
 	private HashSet<String> waitedT;
 	public Set<String> GraphNode=new HashSet<String>();
 	public Set<String> GraphEdge=new HashSet<String>();
@@ -34,9 +41,12 @@ public class transactionManager {
 		return variableList.get(index-1);
 	}
 	
+	/*
+	 * 
+	 */
 	public void deadlockDetecter() {
-		//DFS
-		if(GraphNode.size()>1) {//create graph
+		//use DFS to check the circle in graph
+		if(GraphNode.size()>1) {//built graph
 			HashMap<String,Set<String>> graph= new HashMap<String,Set<String>>();
 			String root="";
 			for (String node:GraphNode) {//insert node
@@ -46,7 +56,6 @@ public class transactionManager {
 			}
 			
 			for(String edge:GraphEdge) {//insert edge
-//				System.out.println("\nthe edge:+++++"+edge); 
 				String head=edge.split("-")[0];
 				String tail=edge.split("-")[1];
 				if(!graph.containsKey(tail)||transactionList.get(tail).isAborted||transactionList.get(tail).isCommited) {
@@ -63,7 +72,6 @@ public class transactionManager {
 		Set<String> toCheck=graph.keySet();
 		boolean cleared=false;
 		for(String head:toCheck) {
-//			Set<String> visited=new HashSet<String>();
 			LinkedHashSet<String> visited=new LinkedHashSet<String>();
 			visited.add(head);
 			for(String tail:graph.get(head)){
@@ -79,6 +87,7 @@ public class transactionManager {
 			}
 		}
 	}
+	@SuppressWarnings("finally")
 	private void clearYoungest(LinkedHashSet<String> visited,String startOfCycle) {
 		// TODO Auto-generated method stub
 		boolean found=false;
@@ -113,10 +122,10 @@ public class transactionManager {
 				break;
 			}
 		}
-		dm_abortTransaction(YoungestTrct);
+		abortTransaction(YoungestTrct);
 		
 	}
-	private void dm_abortTransaction(String youngestTrct) {
+	private void abortTransaction(String youngestTrct) {
 		// TODO Auto-generated method stub
 		Set<String> abortedTransactions=new HashSet<String>();
 		for(Site os:siteList) {
@@ -155,11 +164,10 @@ public class transactionManager {
 			return detectDeadlock(tail,visited,graph);
 			
 		}
-//		return false;
 		return false;
 	}
 	
-	public void init() {
+	public void TM_init() {
 		//initiate site
 		for(int i=1;i<=numOfSites;i++) {
 			Site site=new Site(i);
@@ -216,8 +224,6 @@ public class transactionManager {
 						if(vId%2==1){//odd variable
 							Site s=getSite(1+vId%10);
 							if(transactionList.get(transaction).isReadonly()) {
-//								System.out.println("\nreadonly transaction readed successfully");
-//								waitList.remove(operation);
 								iter.remove();
 								System.out.printf("\n%s,%s",variable,s.variableList.get(variable).getValueOntick(transactionList.get(transaction).getIniTime()));
 								}
@@ -250,15 +256,13 @@ public class transactionManager {
 						}else {//even variable
 							if(transactionList.get(transaction).isReadonly()) {
 								for(Site s:siteList) {//randomly read one site
-//									if(!s.isFailed()) {
-//										System.out.print("\nreadonly transaction readed successfully\n");
 										iter.remove();
 										System.out.printf("\n%s,%s",variable,s.variableList.get(variable).getValueOntick(transactionList.get(transaction).getIniTime()));
 										break;
 //									}
 								}
 							}
-							else {//这里有大问题
+							else {
 //								boolean hasRead=false;
 								for(Site s:siteList) {//randomly read one site
 									if((!s.isFailed())&&	(!s.lockTable.get(variable).getLockStatus().equals("WL"))&&(s.variableList.get(variable).getValue()!=Integer.MAX_VALUE)) {
@@ -327,10 +331,7 @@ public class transactionManager {
 									}
 									
 								}else if (s.getLockStatus(variable).equals("WL")){
-//									waitList.add(op);
-//									waitList.put(transaction, op);
 									GraphNode.add(transaction);
-//									GraphNode.add(s.lockTable.get(s.variableList.get(variable)).getWLockTransaction());	
 //									System.out.print("held by:"+s.lockTable.get(s.variableList.get(variable)).getWLockTransaction());
 									GraphEdge.add(transaction+"-"+s.lockTable.get(variable).getWLockTransaction());
 									System.out.printf("\nTransaction %s waits because variable %s on Site %s has been writelocked by transaction %s",transaction,variable,s.getSiteAddr(),s.lockTable.get(variable).getWLockTransaction());
@@ -464,6 +465,25 @@ public class transactionManager {
 						
 						System.out.printf("\ndump:",operation);
 //						waitList.remove(operation);
+						for(Site s: siteList) {
+							if(s.isFailed()) {
+								System.out.println("\nSite "+s.getSiteAddr()+" failed");
+							}else {
+								System.out.print("\nSite "+s.getSiteAddr()+"-");
+								for(String vn:s.variableList.keySet()) {
+									System.out.print(" x"+vn+":"+s.variableList.get(vn).getValue());
+								}
+							}
+						}
+						for(String tn:transactionList.keySet()) {
+							if(transactionList.get(tn).isAborted) {
+								System.out.println("\ntransaction "+tn+" aborted.");
+							}else if(transactionList.get(tn).isCommited) {
+								System.out.println("\ntransaction "+tn+" committed.");
+							}else {
+								System.out.println("\ntransaction "+tn+" running.");
+							}
+						}
 						iter.remove();
 						
 					}else if(operation[0].equals("fail")) {
@@ -471,7 +491,7 @@ public class transactionManager {
 						iter.remove();
 						System.out.printf("\nfail:",operation);
 						String siteAddr=operation[1];
-						dm_abortTransactionsOnSite(siteAddr);
+						abortTransactionsOnSite(siteAddr);
 						
 					}else if(operation[0].equals("recover")) {
 //						System.out.println("\nrecover:"+operation[1]);
@@ -485,10 +505,8 @@ public class transactionManager {
 			}
 			time+=1;
 		}
-		
 	}
-	
-	private void dm_abortTransactionsOnSite(String siteAddr) {
+	private void abortTransactionsOnSite(String siteAddr) {
 		// TODO Auto-generated method stub
 		Site s=siteList.get(Integer.parseInt(siteAddr)-1);
 		Set<String> abortedTransactions=new HashSet<String>();
@@ -533,18 +551,47 @@ public class transactionManager {
 	}
 	public static void main(String[] args) throws FileNotFoundException {
 		// TODO Auto-generated method stub
+		System.out.println("\nInput manully[1] or read from file[2]?");
 		Scanner input = new Scanner(System.in);
+		String choice=input.next();
+			if(choice.equals("1")) {
+				System.out.print("\n input \"run\" to finish input.");
+				while(input.hasNext()) {
+					String[] ops=input.nextLine().split("\\(|\\)");
+					if(!ops[0].equals("run")) {
+						OpsList.add(ops);
+					}else {
+						centralManager cm=new centralManager();
+						cm.TM_init();
+						break;
+					}
+				}
+			}else if(choice.equals("2")) {
+				String path = input.next();
+//				String path="test/2";
+				FileReader fr = new FileReader(path);
+				Scanner scanner = new Scanner(fr);
+				while (scanner.hasNext()) {
+					String[] ops=scanner.nextLine().split("\\(|\\)");
+					OpsList.add(ops);
+				}
+				centralManager cm=new centralManager();
+				cm.TM_init();
+			}else {
+				System.out.println("\ninvalid input.");
+				
+			}
+		
 //		String path = input.next();
-		String path="test/2";
-		FileReader fr = new FileReader(path);
-		Scanner scanner = new Scanner(fr);
-		while (scanner.hasNext()) {
-			String[] ops=scanner.nextLine().split("\\(|\\)");
-			
-			OpsList.add(ops);
-		}
-		transactionManager tm=new transactionManager();
-		tm.init();
+//		String path="test/2";
+//		FileReader fr = new FileReader(path);
+//		Scanner scanner = new Scanner(fr);
+//		while (scanner.hasNext()) {
+//			String[] ops=scanner.nextLine().split("\\(|\\)");
+//			
+//			OpsList.add(ops);
+//		}
+		
 	}
 
 }

@@ -49,7 +49,7 @@ public class Lock {
 		}
 	}
 	public void addtoLockQueue(String trctName) {
-		System.out.print("\nadded to lock queue  "+trctName);
+//		System.out.print("\nadded to lock queue  "+trctName);
 		this.lockQueue.add(trctName);
 	}
 	public void removeFromLockQueue(String trctName){
